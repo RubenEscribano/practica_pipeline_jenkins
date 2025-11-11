@@ -78,6 +78,8 @@ pipeline {
                     '''
                     junit allowEmptyResults: true, testResults: 'results/*e2e*.xml'
                     archiveArtifacts artifacts: 'results/*e2e*.xml', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'test/e2e/cypress/screenshots/**/*', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'test/e2e/cypress/videos/**/*', allowEmptyArchive: true
                 }
             }
         }
