@@ -5,7 +5,7 @@ pipeline {
     stages {
         stage('Source') {
             steps {
-                git 'https://github.com/srayuso/unir-cicd.git'
+                git branch: 'main', url: 'https://github.com/RubenEscribano/actividad2-eiec.git'
             }
         }
         stage('Build') {
