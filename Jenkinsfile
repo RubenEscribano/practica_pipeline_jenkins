@@ -33,15 +33,49 @@ pipeline {
                 always {
                     junit allowEmptyResults: true, testResults: 'results/*api*.xml'
                     archiveArtifacts artifacts: 'results/*api*.xml', allowEmptyArchive: true
+                    sh 'docker rm -f apiserver || true'
+                    sh 'docker network rm calc-test-api || true'
                 }
             }
         }
         stage('E2E tests') {
             steps {
-                sh 'make test-e2e'
+                // sh 'make test-e2e'
+                sh '''
+                    set -e
+                    mkdir -p results
+                    docker network create calc-test-e2e || true
+                    docker stop apiserver || true
+                    docker rm --force apiserver || true
+                    docker stop calc-web || true
+                    docker rm --force calc-web || true
+
+                    docker run -d --rm --volume $(pwd):/opt/calc --network calc-test-e2e \
+                        --env PYTHONPATH=/opt/calc --name apiserver --env FLASK_APP=app/api.py \
+                        -p 5001:5000 -w /opt/calc calculator-app:latest flask run --host=0.0.0.0
+
+                    docker run -d --rm --volume $(pwd)/web:/usr/share/nginx/html \
+                        --volume $(pwd)/web/constants.test.js:/usr/share/nginx/html/constants.js \
+                        --volume $(pwd)/web/nginx.conf:/etc/nginx/conf.d/default.conf \
+                        --network calc-test-e2e --name calc-web -p 80:80 nginx
+
+                    docker run --rm --volume $(pwd)/test/e2e/cypress.json:/cypress.json \
+                        --volume $(pwd)/test/e2e/cypress:/cypress \
+                        --volume $(pwd)/results:/results --network calc-test-e2e \
+                        cypress/included:4.9.0 --browser chrome \
+                        --reporter junit --reporter-options "mochaFile=/results/e2e_result.xml,toConsole=false" || true
+                '''
             }
             post {
                 always {
+                    sh '''
+                        docker rm --force apiserver || true
+                        docker rm --force calc-web || true
+                        docker network rm calc-test-e2e || true
+                        docker run --rm --volume $(pwd):/opt/calc --env PYTHONPATH=/opt/calc \
+                            -w /opt/calc calculator-app:latest junit2html \
+                            results/e2e_result.xml results/e2e_result.html || true
+                    '''
                     junit allowEmptyResults: true, testResults: 'results/*e2e*.xml'
                     archiveArtifacts artifacts: 'results/*e2e*.xml', allowEmptyArchive: true
                 }
