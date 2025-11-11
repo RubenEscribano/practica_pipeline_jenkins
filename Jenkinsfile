@@ -54,6 +54,22 @@ pipeline {
                         --env PYTHONPATH=/opt/calc --name apiserver --env FLASK_APP=app/api.py \
                         -p 5001:5000 -w /opt/calc calculator-app:latest flask run --host=0.0.0.0
 
+                    echo "Esperando a que el API responda..."
+                    HEALTHY=0
+                    for i in {1..20}; do
+                        if docker run --rm --network calc-test-e2e curlimages/curl:8.5.0 -sSf http://apiserver:5000/ > /dev/null; then
+                            HEALTHY=1
+                            break
+                        fi
+                        sleep 2
+                    done
+
+                    if [ "$HEALTHY" -ne 1 ]; then
+                        echo "El API no respondió al healthcheck."
+                        docker logs apiserver || true
+                        exit 1
+                    fi
+
                     docker run -d --rm --volume $(pwd)/web:/usr/share/nginx/html \
                         --volume $(pwd)/web/constants.test.js:/usr/share/nginx/html/constants.js \
                         --volume $(pwd)/web/nginx.conf:/etc/nginx/conf.d/default.conf \
