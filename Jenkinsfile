@@ -33,8 +33,6 @@ pipeline {
                 always {
                     junit allowEmptyResults: true, testResults: 'results/*api*.xml'
                     archiveArtifacts artifacts: 'results/*api*.xml', allowEmptyArchive: true
-                    sh 'docker rm -f apiserver || true'
-                    sh 'docker network rm calc-test-api || true'
                 }
             }
         }
